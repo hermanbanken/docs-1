@@ -1,5 +1,6 @@
 ---
 title: JetBrains TeamCity
+meta_desc: This page provides an overview of how to use Pulumi with JetBrains TeamCity.
 
 menu:
     userguides:
@@ -19,108 +20,143 @@ to AWS using Pulumi.
 - A working installation of TeamCity
 - An account on the [Pulumi Console](https://app.pulumi.com).
 - The latest version of Pulumi. Installation instructions are [here]({{< relref "/docs/get-started/install" >}}).
-- Setup a new project and [stack]({{< relref "/docs/intro/concepts/stack" >}}) using one of our 
+- Setup a new project and [stack]({{< relref "/docs/intro/concepts/stack" >}}) using one of our
 [Get Started]({{< relref "/docs/get-started" >}}) guides or by running [`pulumi new`]({{< relref "/docs/reference/cli/pulumi_new.md" >}})
 and choosing one of the many templates that are available.
 
 ## Sample Project
 
-The example we are going to deploy is located [here](https://github.com/pulumi/examples/tree/master/aws-ts-hello-fargate). 
-You may download the project and upload it to your own repo to avoid having to clone the entire Pulumi Examples repo onto 
+The example we are going to deploy is located [here](https://github.com/pulumi/examples/tree/master/aws-ts-hello-fargate).
+You may download the project and upload it to your own repo to avoid having to clone the entire Pulumi Examples repo onto
 your TeamCity server.
 
 ## Configuring the TeamCity Project
 
 For the purposes of this guide, we are going to build a TeamCity project via the UI. An alternative way to do this, would
-be to use the [Kotlin DSL](https://www.jetbrains.com/help/teamcity/kotlin-dsl.html). When creating a new project via the UI,
-we will see the following creation wizard:
+be to use the [Kotlin DSL](https://www.jetbrains.com/help/teamcity/kotlin-dsl.html).
 
-![TeamCity Project Creation Wizard](/images/docs/reference/teamcity/new-project.png)
-
-Follow the TeamCity project setup `From a repository URL`. This means we can enter the URL to the 
-[Pulumi Examples Repository](https://github.com/pulumi/examples). This specific respository is open source, so we do not
-need to enter a `Username` or a `Password`. We can then `Proceed`.
+When creating a new project via the UI, we will see the project creation wizard. We are going to create a project
+`From a repository URL` from the [Pulumi Examples](https://github.com/pulumi/examples) repository. This specific
+repository is open source so we do not need to enter a `Username` and `Password`. We can then instruct TeamCity to
+proceed to the next step.
 
 TeamCity will tell us if it can successfully connect to the repository. If it can, then it will ask us to name this project
-and to create a [build configuration])(https://www.jetbrains.com/help/teamcity/build-configuration.html) name.
-
-![TeamCity Project Naming](/images/docs/reference/teamcity/project-name.png)
-
-Let's call the project `Pulumi Example` and create a build configuration called `Development Environment`. We can 
-`Proceed` to the next step. TeamCity will try to find any build steps in the repository. We can click
-the link that says `configure build steps manually` and then we can start creating our project.
+and to create a [build configuration](https://www.jetbrains.com/help/teamcity/build-configuration.html) name. We are going to
+name the project `Examples` and we will create a build configuration called `Tutorial`. We can then `Proceed` to the next step.
+We can click the link that says `configure build steps manually` and then can start creating our project.
 
 A TeamCity configuration is made of [build steps](https://www.jetbrains.com/help/teamcity/configuring-build-steps.html).
 We can break down the steps required for us to deploy this application into a number of build steps.
 
-### Ensure NodeJS & NPM are installed
+### Install NodeJS and NPM Build Step
 
-The first thing we need to do is to ensure that [NodeJS](https://nodejs.org/en/) and [NPM](https://www.npmjs.com/) are 
-installed on our build agents. We would chose `Command Line` as the [build runner](https://www.jetbrains.com/help/teamcity/build-runner.html) 
+The first thing we need to do is to ensure that [NodeJS](https://nodejs.org/en/) and [NPM](https://www.npmjs.com/) are
+installed on our build agents. We would chose `Command Line` as the [build runner](https://www.jetbrains.com/help/teamcity/build-runner.html)
 type and TeamCity will present us with the build runner wizard
 
-![NodeJS and NPM Install](/images/docs/reference/teamcity/nodejs-install.png)
+We are going to create a Build Step with the following parameters:
 
-We are going to name the step `Install NodeJS & NPM`. The working directory will be `aws-ts-hello-fargate` and the contents
-of the custom scriptm will be:
+`Runner type`: Command Line
+`Step name`: Install NodeJS & NPM
+`Execute step`: If all previous steps finished successfully
+`Working directory`: aws-ts-eks-hello-world
+`Run`: Custom script
+`Custom Script`:
 
 ```bash
-    yum -y install nodejs
-    npm version
-``` 
+yum -y install nodejs  
+npm version
+```
 
-We can `Save` the step. Let's add the next build step by clicking on `Add Build Step`. 
+We can `Save` the step. Let's add the next build step by clicking on `Add Build Step`.
 
-![Build Steps](/images/docs/reference/teamcity/build-steps-1.png)
+### Installing Pulumi Build Step
 
-### Installing Pulumi
+We are going to create a Build Step with the following parameters:
 
-Again, we are going to chose a `Command Line` build runner and we can create the build step as follows
+`Runner type`: Command Line
+`Step name`: Install Pulumi
+`Execute step`: If all previous steps finished successfully
+`Working directory`: aws-ts-eks-hello-world
+`Run`: Custom script
+`Custom Script`:
 
-![Pulumi Install](/images/docs/reference/teamcity/pulumi-install.png)
+```bash
+curl -sSL https://get.pulumi.com | sh
+```
 
-### Restoring NPM Dependencies
+Again, we can `Save` the step and add the next build step by clicking on `Add Build Step`.
 
-The next build step is to restore the NPM dependencies required to deploy our application. Let's create
-a new `Command Line` build runner and create the build step as follows
+### Restoring NPM Dependencies Build Steo
 
-![Restore Dependencies](/images/docs/reference/teamcity/restore-dependencies.png)
+We are going to create a Build Step with the following parameters:
 
-### Pulumi Stack Creation
+`Runner type`: Command Line
+`Step name`: Restore Dependencies
+`Execute step`: If all previous steps finished successfully
+`Working directory`: aws-ts-eks-hello-world
+`Run`: Custom script
+`Custom Script`:
 
-Let's create another `Command Line` build runner that we can configure to create our Pulumi [stack]({{< relref "/docs/intro/concepts/stack" >}})
-as follows
+```bash
+curl -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.13.7/2019-06-11/bin/linux/amd64/aws-iam-authenticator
+chmod +x ./aws-iam-authenticator
+mkdir -p $HOME/bin && cp ./aws-iam-authenticator $HOME/bin/aws-iam-authenticator
+npm install
+```
 
-![Stack creation](/images/docs/reference/teamcity/stack-creation.png)
+Again, we can `Save` the step and add the next build step by clicking on `Add Build Step`.
 
-### Pulumi Up...
+### Pulumi Stack Creation Build Steo
 
-The last build step to create is to instruct TeamCity to run the `pulumi up` command. We can create a `Command Line`
-runner and configure it as follows
+We are going to create a Build Step with the following parameters:
 
-![Pulumi Up](/images/docs/reference/teamcity/pulumi-up.png)
+`Runner type`: Command Line
+`Step name`: Stack Creation
+`Execute step`: If all previous steps finished successfully
+`Working directory`: aws-ts-eks-hello-world
+`Run`: Custom script
+`Custom Script`:
+
+```bash
+pulumi stack init %STACK_NAME%
+pulumi config set aws:region %AWS_REGION%
+```
+
+Again, we can `Save` the step and add the last build step by clicking on `Add Build Step`.
+
+### Pulumi Up Build Step
+
+`Runner type`: Command Line
+`Step name`: Pulumi Up
+`Execute step`: If all previous steps finished successfully
+`Working directory`: aws-ts-eks-hello-world
+`Run`: Custom script
+`Custom Script`:
+
+```bash
+pulumi up --yes
+```
 
 ### Configuring Build Parameters
 
-The last thing to do before we `run` the build is to configure the parameters needed to allow Pulumi to be executed.
-There are a number of things we need to set here:
+We need to create a few build parameters before we can actually run the build. The
+[TeamCity Documentation](https://www.jetbrains.com/help/teamcity/configuring-build-parameters.html) describes how to
+create these parameters. The parameters we will create are as follows:
 
-* AWS_ACCESS_KEY_ID     - environment variable
-* AWS_SECRET_ACCESS_KEY - environment variable
-* PULUMI_ACCESS_TOKEN   - environment variable
-* AWS_REGION            - configuration parameter
-* STACK_NAME            - configuration parameter
-* PATH                  - we need to update the PATH env var to include the Pulumi installation
+`AWS_REGION`: us-east-2
+`STACK_NAME`: development-example
 
-The [TeamCity Documentation](https://www.jetbrains.com/help/teamcity/configuring-build-parameters.html) describes how to
-create these parameters.  
-
-![Build Parameters](/images/docs/reference/teamcity/build-parameters.png)
-
+`env.AWS_ACCESS_KEY_ID`: <redacted>
+`env.AWS_SECRET_ACCESS_KEY`: <redacted>
+`env.PULUMI_ACCESS_TOKEN`: <redacted>
+`env.PATH`: `%env.PATH%:%env.HOME%/.pulumi/bin:%env.HOME%/bin`
+  
 ### Running the build
 
-We can now run the build by clicking on the `Run` button. After a few minutes, we should have a successful build. On inspection
-of the build log, we can see that the infrastructure has been successfully deployed:
+Now that all the steps are created and the configuration has been added to TeamCity, we can run the build by clicking on the
+`Run` button. After a few minutes, we should have a successful build. On inspection of the build log, we can see that the
+infrastructure has been successfully deployed:
 
 ```bash
 [17:05:48][Step 5/5]                     exec: {
@@ -139,18 +175,12 @@ of the build log, we can see that the infrastructure has been successfully deplo
 [17:05:48][Step 5/5]     namespaceName  : "helloworld-eyay6eno"
 [17:05:48][Step 5/5]     serviceHostname: "a2b21d9e5f4ee11e99d67026bafffdcc-603547860.us-east-2.elb.amazonaws.com"
 [17:05:48][Step 5/5]     serviceName    : "helloworld-d4oadgeg"
-[17:05:48][Step 5/5] 
+[17:05:48][Step 5/5]
 [17:05:48][Step 5/5] Resources:
 [17:05:48][Step 5/5]     + 40 created
-[17:05:48][Step 5/5] 
+[17:05:48][Step 5/5]
 [17:05:48][Step 5/5] Duration: 13m0s
-[17:05:48][Step 5/5] 
+[17:05:48][Step 5/5]
 [17:05:48][Step 5/5] Permalink: https://app.pulumi.com/stack72/aws-ts-eks-hello-world/development-example/updates/1
 [17:05:48][Step 5/5] Process exited with code 0
 ```
-
-
-
-
-
-
